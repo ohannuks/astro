@@ -2,7 +2,6 @@ import jax.numpy as jnp
 from jax import jit, vmap
 from jaxtyping import Array, Float, Int, jaxtyped
 from beartype import beartype
-from typing import TypeVar
 import jax.numpy as jnp
 from astro.constants import *
 
@@ -155,6 +154,7 @@ def L_bolometric(
     R_meters = R * solar_radius  # Convert radius from solar radii to meters
     log_L_bolometric = jnp.log(4 * jnp.pi) + 2 * jnp.log(R) + jnp.log(sigma) + 4 * jnp.log(T) # Units: W
     return jnp.exp(log_L_bolometric - log_solar_luminosity)  # Convert to solar luminosities
+
 def F_bolometric(
         T: Float[Array, "M"],
         R: Float[Array, "M"],
@@ -181,8 +181,8 @@ if __name__ == "__main__":
     # Example usage
     T = jnp.array([3e3, 4e3, 5e3]) # Temperatures in Kelvin
     R = jnp.array([1.0, 2.0, 3.0]) # Radii in solar radii
-    nu = jnp.array([1e14, 2e14, 3e14])  # Frequencies in Hz
-    lam = jnp.array([400., 500., 600.])  # Wavelengths in nm
+    nu = jnp.array([1e14, 2e14, 3e14]) # Frequencies in Hz
+    lam = jnp.array([400., 500., 600.]) # Wavelengths in nm
     print("B_nu:", B_nu(T, nu))
     print("B_lambda:", B_lambda(T, lam)) 
     print("L_nu:", L_nu(T, R, nu))
