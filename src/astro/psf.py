@@ -60,6 +60,7 @@ def mossat_psf_fourier(
     k2 = kx**2 + ky**2
     k = jnp.sqrt(k2)
     psf_ft = 2./jax.scipy.special.gamma(beta-1) * (jnp.pi * alpha * k)**(beta-1) * bessel_second(beta-1, 2 * jnp.pi * alpha * k)
+    psf_ft = jnp.where(k == 0, 1.0, psf_ft)
     return psf_ft
 
 def run_verification_test():
@@ -109,6 +110,30 @@ def run_verification_test():
     # Tolerances are subject to grid size and pixel scale limits due to discrete sampling
     assert mean_absolute_error < 1e-2, f"Verification failed! Mean error {mean_absolute_error} is too high."
     print("Verification Passed successfully!")
+    # Plot the results for visual inspection (optional) with residual
+    vmin, vmax = jnp.max(jnp.log(jnp.abs(analytical_ft)))-10, jnp.max(jnp.log(jnp.abs(analytical_ft)))
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 3, 1)
+    plt.imshow(jnp.log(jnp.abs(numerical_ft_centered)), extent=[kx.min(), kx.max(), ky.min(), ky.max()], origin='lower', vmin=vmin, vmax=vmax)
+    plt.colorbar(label='Numerical FT Magnitude')
+    plt.title('Numerical FFT of Mossat PSF')
+    plt.xlabel(r"$k_x$ [cycles / arcsec]")
+    plt.ylabel(r"$k_y$ [cycles / arcsec]")
+    plt.subplot(1, 3, 2)
+    plt.imshow(jnp.log(jnp.abs(analytical_ft)), extent=[kx.min(), kx.max(), ky.min(), ky.max()], origin='lower', vmin=vmin, vmax=vmax)
+    plt.colorbar(label='Analytical FT Magnitude')
+    plt.title('Analytical FT of Mossat PSF')
+    plt.xlabel(r"$k_x$ [cycles / arcsec]")
+    plt.ylabel(r"$k_y$ [cycles / arcsec]")
+    plt.subplot(1, 3, 3)
+    plt.imshow(jnp.log(jnp.abs(numerical_ft_centered) - jnp.abs(analytical_ft)), extent=[kx.min(), kx.max(), ky.min(), ky.max()], origin='lower', cmap='RdBu')
+    plt.colorbar(label='Residual (Numerical - Analytical)')
+    plt.title('Residual in Core Domain')
+    plt.xlabel(r"$k_x$ [cycles / arcsec]")
+    plt.ylabel(r"$k_y$ [cycles / arcsec]")
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -121,30 +146,12 @@ if __name__ == "__main__":
 
     (X, Y), (x,y) = create_grid(x0, y0, pix_scale, nx, ny)
     psf = mossat_psf(alpha, beta, X, Y)
-    # Plot the PSF using matplotlib:
-    #import matplotlib.pyplot as plt
-    #plt.imshow(psf, extent=[x.min(), x.max(), y.min(), y.max()], origin='lower')
-    #plt.colorbar(label='PSF Intensity')
-    #plt.title('Mossat PSF')
-    #plt.xlabel('X')
-    #plt.ylabel('Y')
-    #plt.show()
 
     psf_fft_ready = jnp.fft.ifftshift(psf)
     psf_fft = jnp.fft.fft2(psf_fft_ready)
     fft_magnitude_centered = jnp.fft.fftshift(jnp.abs(psf_fft))
     kx = jnp.fft.fftshift(jnp.fft.fftfreq(nx, d=pix_scale))
     ky = jnp.fft.fftshift(jnp.fft.fftfreq(ny, d=pix_scale))
-    #plt.imshow(
-    #    fft_magnitude_centered, 
-    #    extent=[kx.min(), kx.max(), ky.min(), ky.max()], 
-    #    origin='lower'
-    #)
-    #plt.colorbar(label='FFT Magnitude')
-    #plt.title('FFT of Mossat PSF (Centered Spectrum)')
-    #plt.xlabel(r"$k_x$ [cycles / arcsec]")
-    #plt.ylabel(r"$k_y$ [cycles / arcsec]")
-    #plt.show()
 
     ## Run verification test
     run_verification_test()
