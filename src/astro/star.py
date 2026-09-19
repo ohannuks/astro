@@ -86,9 +86,57 @@ def L_lambda(
     R : Radius in solar radii
 
     Returns:
-        Spectral luminosity values for the given wavelengths, temperatures, and radii. Units: [Lsun / m]
+        Spectral luminosity values for the given wavelengths, temperatures, and radii. Units: [Lsun / nm]
     """
     return 4 * jnp.pi * R**2 * B_lambda(T, lam)
+
+def F_nu(
+        T: Float[Array, "M"],
+        R: Float[Array, "M"],
+        nu: Float[Array, "N"],
+        d: Float[Array, "M"]
+        ) -> Float[Array, "M N"]:
+    """
+    Spectral flux F_nu(T, nu, d) for a given frequency nu, temperature T, radius R, and distance d.
+
+    Args:
+    nu: Frequency in Hz.
+    T : Temperature in Kelvin.
+    R : Radius in solar radii
+    d : Distance in *kpc*
+
+    Returns:
+        Spectral flux values for the given frequencies, temperatures, radii, and distances. Units: [Lsun/kpc^2/Hz] -> [Jy]
+    """
+    L_nu_values = L_nu(T, R, nu)
+    log_F_nu = jnp.log(L_nu_values) - jnp.log(4 * jnp.pi) - 2 * jnp.log(d) # Units: [Lsun/kpc^2/Hz]
+    # Convert Lsun/kpc^2/Hz to W/m^2/Hz and then to Jy
+    log_F_nu = log_F_nu + log_solar_luminosity - 2 * log_kpc - log_jansky
+    return jnp.exp(log_F_nu)
+
+def F_lambda(
+        T: Float[Array, "M"],
+        R: Float[Array, "M"],
+        lam: Float[Array, "N"],
+        d: Float[Array, "M"]
+        ) -> Float[Array, "M N"]:
+    """
+    Spectral flux F_lambda(T, lam, d) for a given wavelength lam, temperature T, radius R, and distance d.
+
+    Args:
+    lam: Wavelength in nm.
+    T : Temperature in Kelvin.
+    R : Radius in solar radii
+    d : Distance in *kpc*
+
+    Returns:
+        Spectral flux values for the given wavelengths, temperatures, radii, and distances. Units: [Lsun/kpc^2/m] -> [W/m^2/nm]
+    """
+    L_lambda_values = L_lambda(T, R, lam) # Units: [Lsun/nm]
+    log_F_lambda = jnp.log(L_lambda_values) - jnp.log(4 * jnp.pi) - 2 * jnp.log(d) # Units: [Lsun/kpc^2/nm]
+    # Convert Lsun/kpc^2/nm to W/m^2/nm
+    log_F_lambda = log_F_lambda + log_solar_luminosity - 2 * log_kpc
+    return jnp.exp(log_F_lambda)
 
 def L_bolometric(
         T: Float[Array, "M"],
