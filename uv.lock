@@ -2,8 +2,7 @@ version = 1
 revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
-    "python_full_version >= '3.15'",
-    "python_full_version == '3.14.*'",
+    "python_full_version >= '3.14'",
     "python_full_version < '3.14'",
 ]
 
@@ -26,6 +25,7 @@ dependencies = [
     { name = "jaxtyping" },
     { name = "matplotlib" },
     { name = "tensorflow-probability" },
+    { name = "tfp-nightly" },
 ]
 
 [package.metadata]
@@ -35,6 +35,7 @@ requires-dist = [
     { name = "jaxtyping", specifier = ">=0.3.11" },
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "tensorflow-probability", specifier = ">=0.25.0" },
+    { name = "tfp-nightly", specifier = ">=0.26.0.dev20260919" },
 ]
 
 [[package]]
@@ -725,6 +726,23 @@ dependencies = [
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fe/b6/e116761ceeb880b7ad4c6a7e1203538754dd7dda42538f08d6daaf8dfa4d/tensorflow_probability-0.25.0-py2.py3-none-any.whl", hash = "sha256:f3f4d6431656c0122906888afe1b67b4400e82bd7f254b45b92e6c5b84ea8e3e", size = 6979403, upload-time = "2024-11-08T16:25:57.238Z" },
+]
+
+[[package]]
+name = "tfp-nightly"
+version = "0.26.0.dev20260919"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "absl-py" },
+    { name = "cloudpickle" },
+    { name = "decorator" },
+    { name = "dm-tree" },
+    { name = "gast" },
+    { name = "numpy" },
+    { name = "six" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/df/73abe3b3b90fdaf103bab471a7ef54628581dbb18411e663ac94c10d8187/tfp_nightly-0.26.0.dev20260919-py2.py3-none-any.whl", hash = "sha256:da2f45e2755424af589b593ed3219fd1522e4426908f9ae83ddf55e7bdbf08eb", size = 6977321, upload-time = "2026-09-19T08:43:44.173Z" },
 ]
 
 [[package]]

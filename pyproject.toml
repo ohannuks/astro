@@ -13,6 +13,7 @@ dependencies = [
     "jaxtyping>=0.3.11",
     "matplotlib>=3.11.2",
     "tensorflow-probability>=0.25.0",
+    "tfp-nightly>=0.26.0.dev20260919",
 ]
 
 [project.scripts]
