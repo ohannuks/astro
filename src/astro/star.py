@@ -1,25 +1,24 @@
 import jax.numpy as jnp
 from jax import jit, vmap
-from jaxtyping import Array, Float, Int, jaxtyped
-from beartype import beartype
 import jax.numpy as jnp
 from astro.constants import *
+from astro.common import *
 
-@jaxtyped(typechecker=beartype)
+@typed
 def _B_nu( T: Float[Array, ""], nu: Float[Array, "N"] ) -> Float[Array, "N"]:
     ''' Planck function B_nu(T, nu) for a given frequency nu and temperature T. Units: [W/m^2/Hz/sr] -> [L_sun / R_sun^2 / Hz / sr] '''
     log_numerator = jnp.log(2) + jnp.log(h) - 2 * jnp.log(c) + 3 * jnp.log(nu) # Prevent numerical overflow
     log_denominator = jnp.log(jnp.exp((h / k_B) * (nu / T)) - 1.)
     return jnp.exp(log_numerator - log_denominator - log_solar_luminosity + 2 * log_solar_radius)
-@jaxtyped(typechecker=beartype)
+@typed
 def _B_lambda( T: Float[Array, ""], lam: Float[Array, "N"]) -> Float[Array, "N"]:
     ''' Planck function B_lambda(T, lam) for a given wavelength lam and temperature T. Units: [W/m^2/m/sr] -> [L_sun / R_sun^2 / nm / sr] '''
     lam_meters = lam * 1e-9  # Convert wavelength from nm to meters
     log_numerator = jnp.log(2) + jnp.log(h) + 2 * jnp.log(c) - 5 * jnp.log(lam_meters) # Prevent numerical overflow
     log_denominator = jnp.log(jnp.exp((h * c) / (lam_meters * k_B * T)) - 1.)
     return jnp.exp(log_numerator - log_denominator - log_solar_luminosity + 2 * log_solar_radius + log_nm)
-
 # Vectorize all of the above functions using vmap
+@typed
 def B_nu(
         T: Float[Array, "M"],
         nu: Float[Array, "N"]
@@ -36,6 +35,7 @@ def B_nu(
     """
     vmap_B_nu = vmap(_B_nu, in_axes=(0, None), out_axes=0)
     return vmap_B_nu(T, nu)
+@typed
 def B_lambda(
         T: Float[Array, "M"],
         lam: Float[Array, "N"]
@@ -52,7 +52,7 @@ def B_lambda(
     """
     vmap_B_lambda = vmap(_B_lambda, in_axes=(0, None), out_axes=0)
     return vmap_B_lambda(T, lam)
-
+@typed
 def L_nu(
         T: Float[Array, "M"],
         R: Float[Array, "M"],
@@ -70,7 +70,7 @@ def L_nu(
         Spectral luminosity values for the given frequencies, temperatures, and radii. Units: [Lsun / Hz]
     """
     return 4 * jnp.pi * R**2 * B_nu(T, nu)
-
+@typed
 def L_lambda(
         T: Float[Array, "M"],
         R: Float[Array, "M"],
@@ -88,7 +88,7 @@ def L_lambda(
         Spectral luminosity values for the given wavelengths, temperatures, and radii. Units: [Lsun / nm]
     """
     return 4 * jnp.pi * R**2 * B_lambda(T, lam)
-
+@typed
 def F_nu(
         T: Float[Array, "M"],
         R: Float[Array, "M"],
@@ -112,7 +112,7 @@ def F_nu(
     # Convert Lsun/kpc^2/Hz to W/m^2/Hz and then to Jy
     log_F_nu = log_F_nu + log_solar_luminosity - 2 * log_kpc - log_jansky
     return jnp.exp(log_F_nu)
-
+@typed
 def F_lambda(
         T: Float[Array, "M"],
         R: Float[Array, "M"],
@@ -136,7 +136,7 @@ def F_lambda(
     # Convert Lsun/kpc^2/nm to W/m^2/nm
     log_F_lambda = log_F_lambda + log_solar_luminosity - 2 * log_kpc
     return jnp.exp(log_F_lambda)
-
+@typed
 def L_bolometric(
         T: Float[Array, "M"],
         R: Float[Array, "M"]
@@ -154,7 +154,7 @@ def L_bolometric(
     R_meters = R * solar_radius  # Convert radius from solar radii to meters
     log_L_bolometric = jnp.log(4 * jnp.pi) + 2 * jnp.log(R) + jnp.log(sigma) + 4 * jnp.log(T) # Units: W
     return jnp.exp(log_L_bolometric - log_solar_luminosity)  # Convert to solar luminosities
-
+@typed
 def F_bolometric(
         T: Float[Array, "M"],
         R: Float[Array, "M"],
