@@ -92,8 +92,48 @@ class BoyerLindquist:
         """
         Theta = Q - (a**2 * (1 - E**2) + Lz**2 / jnp.sin(theta)**2) * jnp.cos(theta)**2
         return Theta
-    #@typed
+    @typed
+    def phidot(self, r:Scalar, theta:Scalar, M:Scalar, a:Scalar, E:Scalar, Lz:Scalar) -> Scalar:
+        """ Returns the azimuthal component of the equations of motion in Boyer-Lindquist coordinates.
 
+        Args:
+            r (Scalar): Radial coordinate.
+            theta (Scalar): Polar angle coordinate.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+            E (Scalar): Specific Energy of the particle (E = E_standard / mu)
+            Lz (Scalar): Specific Angular momentum of the particle (Lz = Lz_standard / mu)
+
+        Returns:
+            Scalar: Azimuthal component of the equations of motion in Boyer-Lindquist coordinates.
+        """
+        Sigma = self.Sigma(r, theta, a)
+        Delta = self.Delta(r, M, a)
+        Phi_r = a * ((r**2 + a**2) * E - a * Lz) / Delta
+        Phi_theta = Lz / jnp.sin(theta)**2 - a * E
+        phidot = (Phi_r + Phi_theta) / Sigma
+        return phidot
+    @typed
+    def tdot(self, r:Scalar, theta:Scalar, M:Scalar, a:Scalar, E:Scalar, Lz:Scalar) -> Scalar:
+        """ Returns the time component of the equations of motion in Boyer-Lindquist coordinates.
+
+        Args:
+            r (Scalar): Radial coordinate.
+            theta (Scalar): Polar angle coordinate.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+            E (Scalar): Specific Energy of the particle (E = E_standard / mu)
+            Lz (Scalar): Specific Angular momentum of the particle (Lz = Lz_standard / mu)
+
+        Returns:
+            Scalar: Time component of the equations of motion in Boyer-Lindquist coordinates.
+        """
+        Sigma = self.Sigma(r, theta, a)
+        Delta = self.Delta(r, M, a)
+        T_r = ((r**2 + a**2)**2 * E - 2 * M * r * a * Lz) / Delta
+        T_theta = a * (Lz - a * E * jnp.sin(theta)**2)
+        tdot = (T_r + T_theta) / Sigma
+        return tdot
     @typed
     def Sigma(self, r:Scalar, theta:Scalar, a:Scalar) -> Scalar:
         """ Returns the Sigma function in Boyer-Lindquist coordinates.
