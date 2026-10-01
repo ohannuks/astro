@@ -56,7 +56,53 @@ class BoyerLindquist:
             [ginv_t_phi, 0, 0, ginv_phi_phi]
         ])
         return ginvmunu
+    # Equations on motion using Mino time (for massive particles mu > 0)
+    @typed
+    def rdot(self, r:Scalar, M:Scalar, a:Scalar, E:Scalar, Lz:Scalar, Q:Scalar) -> Scalar:
+        """ Returns the radial component of the equations of motion in Boyer-Lindquist coordinates.
 
+        Args:
+            r (Scalar): Radial coordinate.
+            theta (Scalar): Polar angle coordinate.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+            E (Scalar): Specific Energy of the particle (E = E_standard / mu)
+            Lz (Scalar): Specific Angular momentum of the particle (Lz = Lz_standard / mu)
+            Q (Scalar): Specific Carter constant of the particle (Q = Q_standard / mu^2)
+
+        Returns:
+            Scalar: Radial component of the equations of motion in Boyer-Lindquist coordinates.
+        """
+        Sigma = r**2 + (a * jnp.cos(theta))**2
+        Delta = r**2 - 2 * M * r + a**2
+        R = ((r**2 + a**2) * E - a * Lz)**2 - Delta * (Q + (Lz - a * E)**2)
+        return jnp.sqrt(R) / Sigma
+    @typed
+    def Sigma(self, r:Scalar, theta:Scalar, a:Scalar) -> Scalar:
+        """ Returns the Sigma function in Boyer-Lindquist coordinates.
+
+        Args:
+            r (Scalar): Radial coordinate.
+            theta (Scalar): Polar angle coordinate.
+            a (Scalar): Spin parameter of the black hole.
+
+        Returns:
+            Scalar: Sigma function in Boyer-Lindquist coordinates.
+        """
+        return r**2 + (a * jnp.cos(theta))**2
+    @typed
+    def Delta(self, r:Scalar, M:Scalar, a:Scalar) -> Scalar:
+        """ Returns the Delta function in Boyer-Lindquist coordinates.
+
+        Args:
+            r (Scalar): Radial coordinate.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+
+        Returns:
+            Scalar: Delta function in Boyer-Lindquist coordinates.
+        """
+        return r**2 - 2 * M * r + a**2
 
 if __name__ == "__main__":
     bl = BoyerLindquist()
