@@ -15,8 +15,8 @@ class BoyerLindquist:
         Returns:
             Mat: Metric tensor g_{mu nu} in Boyer-Lindquist coordinates.
         """
-        Sigma = r**2 + (a * jnp.cos(theta))**2
-        Delta = r**2 - 2 * M * r + a**2
+        Sigma = self.Sigma(r, theta, a)
+        Delta = self.Delta(r, M, a)
         g_t_t = -1 + 2 * M * r / Sigma
         g_r_r = Sigma / Delta
         g_theta_theta = Sigma
@@ -42,8 +42,8 @@ class BoyerLindquist:
         Returns:
             Mat: Inverse metric tensor g^{mu nu} in Boyer-Lindquist coordinates
         """
-        Sigma = r**2 + (a * jnp.cos(theta))**2
-        Delta = r**2 - 2 * M * r + a**2
+        Sigma = self.Sigma(r, theta, a)
+        Delta = self.Delta(r, M, a)
         ginv_t_t = -((r**2 + a**2)**2 - Delta * a**2 * jnp.sin(theta)**2) / (Sigma * Delta)
         ginv_r_r = Delta / Sigma
         ginv_theta_theta = 1 / Sigma
@@ -58,7 +58,7 @@ class BoyerLindquist:
         return ginvmunu
     # Equations on motion using Mino time (for massive particles mu > 0)
     @typed
-    def rdot(self, r:Scalar, M:Scalar, a:Scalar, E:Scalar, Lz:Scalar, Q:Scalar) -> Scalar:
+    def rdot(self, r:Scalar, theta:Scalar, M:Scalar, a:Scalar, E:Scalar, Lz:Scalar, Q:Scalar) -> Scalar:
         """ Returns the radial component of the equations of motion in Boyer-Lindquist coordinates.
 
         Args:
@@ -73,8 +73,8 @@ class BoyerLindquist:
         Returns:
             Scalar: Radial component of the equations of motion in Boyer-Lindquist coordinates.
         """
-        Sigma = r**2 + (a * jnp.cos(theta))**2
-        Delta = r**2 - 2 * M * r + a**2
+        Sigma = self.Sigma(r, theta, a)
+        Delta = self.Delta(r, M, a)
         R = ((r**2 + a**2) * E - a * Lz)**2 - Delta * (Q + (Lz - a * E)**2)
         return jnp.sqrt(R) / Sigma
     @typed
