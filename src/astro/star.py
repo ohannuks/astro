@@ -5,7 +5,7 @@ from astro.constants import *
 from astro.common import *
 
 @typed
-def _B_nu( T: Float[Array, ""], nu: Float[Array, "N"] ) -> Float[Array, "N"]:
+def _B_nu( T: Float[Array, ""], nu: Vec ) -> Vec:
     ''' Planck function B_nu(T, nu) for a given frequency nu and temperature T. Units: [W/m^2/Hz/sr] -> [L_sun / R_sun^2 / Hz / sr] '''
     log_numerator = jnp.log(2) + jnp.log(h) - 2 * jnp.log(c) + 3 * jnp.log(nu) # Prevent numerical overflow
     log_denominator = jnp.log(jnp.exp((h / k_B) * (nu / T)) - 1.)
