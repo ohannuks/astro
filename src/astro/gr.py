@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 from astro.common import Scalar, Vec, Mat, typed
-
+import elliptic  # includes Jacobi sine function sn, Legendre incomplete elliptic integral of the first kind
+# sn, cn, dn, am = elliptic.ellipj(u, m)
 class BoyerLindquist:
     @typed
     def g_mu_nu(self, r:Scalar, theta:Scalar, M:Scalar, a:Scalar) -> Mat:
@@ -161,6 +162,50 @@ class BoyerLindquist:
         """
         return r**2 - 2 * M * r + a**2
 
+class BoyerLindquistGeodesic(BoyerLindquist):
+    """ Struct for geodesics in Boyer-Lindquist coordinates using semi-analytical methods following https://arxiv.org/abs/0906.1420 . """
+    @typed
+    def r_psi(psi, r1:Scalar, r2:Scalar, r3:Scalar, r4:Scalar) -> Scalar:
+        """ Returns the radial coordinate r as a function of the parameter psi.
+
+        Args:
+            psi (Scalar): Parameter.
+            r1 (Scalar): First root of the radial potential.
+            r2 (Scalar): Second root of the radial potential.
+            r3 (Scalar): Third root of the radial potential.
+            r4 (Scalar): Fourth root of the radial potential.
+
+        Returns:
+            Scalar: Radial coordinate r(psi) as a function of the parameter psi.
+        """
+        sin_psi = jnp.sin(psi)
+        r_psi = r1*r4*(r2 - r3) + r2*r3*(r1 - r4) *sin_psi**2 / ((r2 - r3) + (r1 - r4) * sin_psi**2)
+        return r_psi
+    @typed
+    def R(self, lambda: Scalar, M:Scalar, a:Scalar, E:Scalar, Lz:Scalar, Q:Scalar) -> Scalar:
+        """ Returns the radial component of the equations of motion in Boyer-Lindquist coordinates.
+
+        Args:
+            lambda (Scalar): Affine parameter.
+            r (Scalar): Radial coordinate.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+            E (Scalar): Specific Energy of the particle (E = E_standard / mu)
+            Lz (Scalar): Specific Angular momentum of the particle (Lz = Lz_standard / mu)
+            Q (Scalar): Specific Carter constant of the particle (Q = Q_standard / mu^2)
+
+        Returns:
+            Scalar: Radial component of the equations of motion in Boyer-Lindquist coordinates.
+        """
+        r0, r1, r2, r3 = self.find_radial_roots(M, a, E, Lz, Q)
+        m = (r1 - r2) * (r3 - r4) / ((r1 - r3) * (r2 - r4))
+        psi = jnp.arcsin(jnp.sqrt((r1 - r3) * (r - r2) / ((r1 - r2) * (r - r3))))
+        psi_0 = jnp.arcsin(jnp.sqrt((r1 - r3) * (r0 - r2) / ((r1 - r2) * (r0 - r3))))
+        F_psi_0 = elliptic.elliptic12(psi_0, m)[0]
+        F_psi = elliptic.elliptic12(psi, m)[0]
+        omega_lambda = F_psi_0-F_psi
+        phase_offset = 0
+        sin_psi = elliptic.ellipj(omega_lambda, m)[0]
 
 if __name__ == "__main__":
     bl = BoyerLindquist()
@@ -172,3 +217,10 @@ if __name__ == "__main__":
     ginvmunu = bl.g_inv_mu_nu(r, theta, M, a)
     print("Metric tensor g_{mu nu}:\n", gmunu)
     print("Inverse metric tensor g^{mu nu}:\n", ginvmunu)
+    E, Lz, Q = jnp.array(1.0), jnp.array(0.5), jnp.array(0.1)
+    print("rdot2:", bl.rdot2(r, M, a, E, Lz, Q))
+    print("thetadot2:", bl.thetadot2(theta, M, a, E, Lz, Q))
+    print("phidot:", bl.phidot(r, theta, M, a, E, Lz))
+    print("tdot:", bl.tdot(r, theta, M, a, E, Lz))
+    
+
