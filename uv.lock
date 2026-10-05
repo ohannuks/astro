@@ -47,7 +47,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "beartype", specifier = ">=0.22.9" },
-    { name = "elliptic-functions", extras = ["jax"], specifier = ">=4.2.0" },
+    { name = "elliptic-functions", extras = ["jax"], git = "https://github.com/ohannuks/elliptic.git?subdirectory=python" },
     { name = "jax", specifier = ">=0.11.2" },
     { name = "jaxtyping", specifier = ">=0.3.11" },
     { name = "matplotlib", specifier = ">=3.11.2" },
@@ -214,15 +214,11 @@ wheels = [
 
 [[package]]
 name = "elliptic-functions"
-version = "4.2.0"
-source = { registry = "https://pypi.org/simple" }
+version = "4.2.1"
+source = { git = "https://github.com/ohannuks/elliptic.git?subdirectory=python#ee36eab027f5069bafa8ece42c0a2d2064a2a012" }
 dependencies = [
     { name = "array-api-compat" },
     { name = "numpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/2b/824733f114f8c656154b6983c50d4c485fea60f8808992bacf0bf485697e/elliptic_functions-4.2.0.tar.gz", hash = "sha256:3123d88f55e492708b0058b67881d6b4b2883f874c8081ec12b029fe06a7f750", size = 201434, upload-time = "2026-09-21T21:13:06.744Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/55/94/9a01292a5c37e66b5155c1f1bd96f2efe4b86db6c587f29b2caed6811acd/elliptic_functions-4.2.0-py3-none-any.whl", hash = "sha256:c1ec81ccba0458d90568c39b9de6b9ee7fa6d65feb6ff894e486c35ee6f119c9", size = 35236, upload-time = "2026-09-21T21:13:05.097Z" },
 ]
 
 [package.optional-dependencies]
