@@ -224,7 +224,7 @@ def in_wave_limit(omega):
 
 def in_geo_limit(omega, y):
     """Geometric optics: large image phase ω ΔT."""
-    return omega * pml.delta_T(y) >= GEO_PHASE_THRESH
+    return omega * pml.Deltat(y) >= GEO_PHASE_THRESH
 
 
 def _in_lut(omega, y):

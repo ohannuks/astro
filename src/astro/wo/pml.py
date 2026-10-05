@@ -7,6 +7,7 @@ import jax.numpy as jnp
 from jax.scipy.special import gamma
 
 from astro.common import Scalar, Vec, typed
+from astro.wo.hyp1f1 import hyp1f1
 
 
 @typed
@@ -58,11 +59,13 @@ def phi_m(y: Scalar) -> Scalar:
     """
     x_m = (y + jnp.sqrt(y**2 + 4)) / 2
     return (x_m - y) ** 2 / 2 - jnp.log(x_m)
-def Deltat(y):
+@typed
+def Deltat(y: Scalar) -> Scalar:
     """Time delay between the + and − images in geometric optics limit."""
     s = jnp.sqrt(y**2 + 4)
     return 0.5 * y * s + jnp.log((s + y) / (s - y))
-def Fgeo(omega, y):
+@typed
+def Fgeo(omega: Vec, y: Scalar) -> Vec:
     """Geometric-optics amplification factor.
 
     F_geo = sqrt|μ₊| - i sqrt|μ₋| exp(i ω ΔT)
@@ -70,32 +73,16 @@ def Fgeo(omega, y):
     s = jnp.sqrt(y**2 + 4)
     mu_p = 0.5 + (y**2 + 2) / (2 * y * s)
     mu_m = 0.5 - (y**2 + 2) / (2 * y * s)
-    return jnp.sqrt(jnp.abs(mu_p)) - 1j * jnp.sqrt(jnp.abs(mu_m)) * jnp.exp(1j * omega *Deltat(y))
-def _hyp1f1(a, b, z, tol=1e-13, maxn=5000):
-    """₁F₁(a; b; z) by power series (scalar)."""
-
-    def body(carry):
-        k, term, s = carry
-        term = term * (a + k - 1) / (b + k - 1) * z / k
-        return k + 1, term, s + term
-
-    def cond(carry):
-        k, term, s = carry
-        return (k <= maxn) & (jnp.abs(term) >= tol * jnp.maximum(1.0, jnp.abs(s)))
-
-    one = jnp.asarray(1.0 + 0.0j, dtype=jnp.complex128)
-    _, _, s = jax.lax.while_loop(cond, body, (1, one, one))
-    return s
-def _F_scalar(om, y):
+    return jnp.sqrt(jnp.abs(mu_p)) - 1j * jnp.sqrt(jnp.abs(mu_m)) * jnp.exp(1j * omega * Deltat(y))
+@typed
+def _F_scalar(omega: Scalar, y: Scalar) -> Scalar:
     """Wave-optics F at one frequency (see F)."""
-    # JAX has no complex hyp1f1; use the series. |z| = ω y²/2.
-    a = 1j * om / 2
-    z = 1j * om * y * y / 2
-    pref = jnp.exp(jnp.pi * om / 4 + 1j * om / 2 * (jnp.log(om / 2) - 2 * phi_m(y)))
-    return pref * gamma(1.0 - 1j * om / 2.0) * _hyp1f1(a, 1.0 + 0.0j, z)
-
-
-def F(omega, y):
+    a = 1j * omega / 2
+    z = 1j * omega * y * y / 2
+    pref = jnp.exp(jnp.pi * omega / 4 + 1j * omega / 2 * (jnp.log(omega / 2) - 2 * phi_m(y)))
+    return pref * gamma(1.0 - 1j * omega / 2.0) * hyp1f1(a, 1.0 + 0.0j, z)
+@typed
+def F(omega: Vec, y: Scalar) -> Vec:
     """Wave-optics amplification factor for a point mass lens.
 
     F(ω, y) = exp(π ω/4 + i ω/2 [log(ω/2) − 2 φ_m(y)])
@@ -109,7 +96,6 @@ def F(omega, y):
     if omega.ndim == 0:
         return _F_scalar(omega, y)
     return jax.vmap(lambda om: _F_scalar(om, y))(omega)
-
 
 if __name__ == "__main__":
     # Demo over a wide band: use the LUT/limit wrapper (keeps this file clean).
