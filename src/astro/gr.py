@@ -518,6 +518,7 @@ if __name__ == "__main__":
     r = jax.jit(jax.vmap(lambda lam: geo.r(lam, p, e, x, M, a)))(lams)
     theta = jax.jit(jax.vmap(lambda lam: geo.theta(lam, p, e, x, M, a)))(lams)
     phi = jax.jit(jax.vmap(lambda lam: geo.phi(lam, p, e, x, M, a)))(lams)
+    t = jax.jit(jax.vmap(lambda lam: geo.t(lam, p, e, x, M, a)))(lams)
     t_kg, r_kg, th_kg, ph_kg = StableOrbit(float(a), float(p), float(e), float(x)).trajectory()
     lams_np = np.asarray(lams)
     r_kg = r_kg(lams_np)
