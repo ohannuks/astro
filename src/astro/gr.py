@@ -1,4 +1,5 @@
 import numpy as np
+import jax
 import jax.numpy as jnp
 from astro.common import Scalar, Vec, Mat, typed
 import elliptic  # includes Jacobi sine function sn, Legendre incomplete elliptic integral of the first kind
@@ -168,29 +169,44 @@ class BoyerLindquistGeodesic(BoyerLindquist):
     @typed
     def ellipk(self, m:Scalar) -> Scalar:
         """ Complete elliptic integral of the first kind K(m). """
+        if isinstance(m, jax.core.Tracer):
+            F, _, _ = elliptic.elliptic12(jnp.pi / 2, m)
+            return F
         F, _, _ = elliptic.elliptic12(np.pi / 2, np.asarray(m, dtype=np.float64))
         return jnp.asarray(F)
     @typed
     def ellipe(self, m:Scalar) -> Scalar:
         """ Complete elliptic integral of the second kind E(m). """
+        if isinstance(m, jax.core.Tracer):
+            _, Einc, _ = elliptic.elliptic12(jnp.pi / 2, m)
+            return Einc
         _, Einc, _ = elliptic.elliptic12(np.pi / 2, np.asarray(m, dtype=np.float64))
         return jnp.asarray(Einc)
     @typed
     def ellippi(self, n:Scalar, m:Scalar) -> Scalar:
         """ Complete elliptic integral of the third kind Pi(n, m). """
+        if isinstance(m, jax.core.Tracer) or isinstance(n, jax.core.Tracer):
+            return elliptic.elliptic3(jnp.pi / 2, m, n)
         return jnp.asarray(elliptic.elliptic3(np.pi / 2, np.asarray(m, dtype=np.float64), np.asarray(n, dtype=np.float64)))
     @typed
     def ellipeinc(self, phi:Scalar, m:Scalar) -> Scalar:
         """ Incomplete elliptic integral of the second kind E(phi, m). """
+        if isinstance(phi, jax.core.Tracer) or isinstance(m, jax.core.Tracer):
+            _, Einc, _ = elliptic.elliptic12(phi, m)
+            return Einc
         _, Einc, _ = elliptic.elliptic12(np.asarray(phi, dtype=np.float64), np.asarray(m, dtype=np.float64))
         return jnp.asarray(Einc)
     @typed
     def ellippiinc(self, phi:Scalar, n:Scalar, m:Scalar) -> Scalar:
         """ Incomplete elliptic integral of the third kind Pi(phi, n, m). """
+        if isinstance(phi, jax.core.Tracer) or isinstance(n, jax.core.Tracer) or isinstance(m, jax.core.Tracer):
+            return elliptic.elliptic3(phi, m, n)
         return jnp.asarray(elliptic.elliptic3(np.asarray(phi, dtype=np.float64), np.asarray(m, dtype=np.float64), np.asarray(n, dtype=np.float64)))
     @typed
     def ellipj(self, u:Scalar, m:Scalar) -> tuple[Scalar, Scalar, Scalar, Scalar]:
         """ Jacobi elliptic functions (sn, cn, dn, am). """
+        if isinstance(u, jax.core.Tracer) or isinstance(m, jax.core.Tracer):
+            return elliptic.ellipj(u, m)
         sn, cn, dn, am = elliptic.ellipj(np.asarray(u, dtype=np.float64), np.asarray(m, dtype=np.float64))
         return jnp.asarray(sn), jnp.asarray(cn), jnp.asarray(dn), jnp.asarray(am)
     @typed
@@ -514,17 +530,16 @@ if __name__ == "__main__":
     x = jnp.array(np.cos(np.deg2rad(20.0)))
     M = jnp.array(1.0)
     a = jnp.array(0.9)
-    lams = np.linspace(0.0, 20.0, 80)
-    r = np.empty_like(lams)
-    theta = np.empty_like(lams)
-    phi = np.empty_like(lams)
-    t = np.empty_like(lams)
-    for i, lam in enumerate(lams):
-        lam_i = jnp.asarray(lam)
-        r[i] = float(geo.r(lam_i, p, e, x, M, a))
-        theta[i] = float(geo.theta(lam_i, p, e, x, M, a))
-        phi[i] = float(geo.phi(lam_i, p, e, x, M, a))
-        t[i] = float(geo.t(lam_i, p, e, x, M, a))
+    lams = jnp.linspace(0.0, 20.0, 80)
+    r = jax.vmap(lambda lam: geo.r(lam, p, e, x, M, a))(lams)
+    theta = jax.vmap(lambda lam: geo.theta(lam, p, e, x, M, a))(lams)
+    phi = jax.vmap(lambda lam: geo.phi(lam, p, e, x, M, a))(lams)
+    t = jax.vmap(lambda lam: geo.t(lam, p, e, x, M, a))(lams)
+    lams = np.asarray(lams)
+    r = np.asarray(r)
+    theta = np.asarray(theta)
+    phi = np.asarray(phi)
+    t = np.asarray(t)
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
     axes[0, 0].plot(lams, r)
     axes[0, 0].set_ylabel(r"$r(\lambda)$")
