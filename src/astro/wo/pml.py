@@ -7,7 +7,7 @@ import jax.numpy as jnp
 from jax.scipy.special import gamma
 
 from astro.common import CScalar, CScalarOrVec, Scalar, ScalarOrVec, Vec, typed
-from astro.wo.hyp1f1 import hyp1f1
+from specialfunctions import hyp1f1
 
 jax.config.update("jax_enable_x64", True)  # Use double precision for better accuracy
 
