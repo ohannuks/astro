@@ -1,3 +1,4 @@
+import numpy as np
 import jax.numpy as jnp
 from astro.common import Scalar, Vec, Mat, typed
 import elliptic  # includes Jacobi sine function sn, Legendre incomplete elliptic integral of the first kind
@@ -165,6 +166,34 @@ class BoyerLindquist:
 class BoyerLindquistGeodesic(BoyerLindquist):
     """ Struct for geodesics in Boyer-Lindquist coordinates using semi-analytical methods following https://arxiv.org/abs/0906.1420 . """
     @typed
+    def ellipk(self, m:Scalar) -> Scalar:
+        """ Complete elliptic integral of the first kind K(m). """
+        F, _, _ = elliptic.elliptic12(np.pi / 2, np.asarray(m, dtype=np.float64))
+        return jnp.asarray(F)
+    @typed
+    def ellipe(self, m:Scalar) -> Scalar:
+        """ Complete elliptic integral of the second kind E(m). """
+        _, Einc, _ = elliptic.elliptic12(np.pi / 2, np.asarray(m, dtype=np.float64))
+        return jnp.asarray(Einc)
+    @typed
+    def ellippi(self, n:Scalar, m:Scalar) -> Scalar:
+        """ Complete elliptic integral of the third kind Pi(n, m). """
+        return jnp.asarray(elliptic.elliptic3(np.pi / 2, np.asarray(m, dtype=np.float64), np.asarray(n, dtype=np.float64)))
+    @typed
+    def ellipeinc(self, phi:Scalar, m:Scalar) -> Scalar:
+        """ Incomplete elliptic integral of the second kind E(phi, m). """
+        _, Einc, _ = elliptic.elliptic12(np.asarray(phi, dtype=np.float64), np.asarray(m, dtype=np.float64))
+        return jnp.asarray(Einc)
+    @typed
+    def ellippiinc(self, phi:Scalar, n:Scalar, m:Scalar) -> Scalar:
+        """ Incomplete elliptic integral of the third kind Pi(phi, n, m). """
+        return jnp.asarray(elliptic.elliptic3(np.asarray(phi, dtype=np.float64), np.asarray(m, dtype=np.float64), np.asarray(n, dtype=np.float64)))
+    @typed
+    def ellipj(self, u:Scalar, m:Scalar) -> tuple[Scalar, Scalar, Scalar, Scalar]:
+        """ Jacobi elliptic functions (sn, cn, dn, am). """
+        sn, cn, dn, am = elliptic.ellipj(np.asarray(u, dtype=np.float64), np.asarray(m, dtype=np.float64))
+        return jnp.asarray(sn), jnp.asarray(cn), jnp.asarray(dn), jnp.asarray(am)
+    @typed
     def r_psi(self, psi:Scalar, r1:Scalar, r2:Scalar, r3:Scalar, r4:Scalar) -> Scalar:
         """ Returns the radial coordinate r as a function of the Jacobi amplitude psi (eq. 62).
 
@@ -221,6 +250,245 @@ class BoyerLindquistGeodesic(BoyerLindquist):
         eps0 = a**2 * (1 - E**2) / Lz**2
         z_plus = Q / (Lz**2 * eps0 * z_minus)
         return z_minus, z_plus
+    @typed
+    def constants_of_motion(self, p:Scalar, e:Scalar, x:Scalar, M:Scalar, a:Scalar) -> tuple[Scalar, Scalar, Scalar]:
+        """ Specific (E, Lz, Q) from R(r1)=R(r2)=0 (Schmidt App. B).
+
+        Args:
+            p (Scalar): Dimensionless semi-latus rectum (semi-latus rectum / M).
+            e (Scalar): Eccentricity.
+            x (Scalar): Cosine of the inclination.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+
+        Returns:
+            tuple: (E, Lz, Q).
+        """
+        r1 = p * M / (1 - e)
+        r2 = p * M / (1 + e)
+        z2 = 1 - x**2
+        Delta1 = self.Delta(r1, M, a)
+        Delta2 = self.Delta(r2, M, a)
+        f1 = r1**4 + a**2 * (r1 * (r1 + 2 * M) + z2 * Delta1)
+        g1 = 2 * a * M * r1
+        h1 = r1 * (r1 - 2 * M) + z2 / x**2 * Delta1
+        d1 = (r1**2 + a**2 * z2) * Delta1
+        f2 = r2**4 + a**2 * (r2 * (r2 + 2 * M) + z2 * Delta2)
+        g2 = 2 * a * M * r2
+        h2 = r2 * (r2 - 2 * M) + z2 / x**2 * Delta2
+        d2 = (r2**2 + a**2 * z2) * Delta2
+        kappa = d1 * h2 - h1 * d2
+        rho = f1 * h2 - h1 * f2
+        sigma = g1 * h2 - h1 * g2
+        epsilon = d1 * g2 - g1 * d2
+        eta = f1 * g2 - g1 * f2
+        disc = sigma * (sigma * epsilon**2 + rho * epsilon * kappa - eta * kappa**2)
+        E = jnp.sqrt((kappa * rho + 2 * epsilon * sigma - jnp.sign(x) * 2 * jnp.sqrt(disc)) / (rho**2 + 4 * eta * sigma))
+        Lz = (-E * g1 + jnp.sign(x) * jnp.sqrt(-d1 * h1 + E**2 * (g1**2 + f1 * h1))) / h1
+        Q = z2 * (a**2 * (1 - E**2) + Lz**2 / x**2)
+        return E, Lz, Q
+    @typed
+    def mino_frequencies(self, p:Scalar, e:Scalar, x:Scalar, M:Scalar, a:Scalar) -> tuple[Scalar, Scalar, Scalar, Scalar]:
+        """ Mino-time frequencies (Upsilon_r, Upsilon_theta, Upsilon_phi, Gamma).
+
+        Args:
+            p (Scalar): Dimensionless semi-latus rectum (semi-latus rectum / M).
+            e (Scalar): Eccentricity.
+            x (Scalar): Cosine of the inclination.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+
+        Returns:
+            tuple: (Upsilon_r, Upsilon_theta, Upsilon_phi, Gamma).
+        """
+        E, Lz, Q = self.constants_of_motion(p, e, x, M, a)
+        r1, r2, r3, r4 = self.find_radial_roots(p, e, M, a, E, Q)
+        z_minus, z_plus = self.find_polar_roots(a, E, Lz, Q, x)
+        r_plus = M + jnp.sqrt(M**2 - a**2)
+        r_minus = M - jnp.sqrt(M**2 - a**2)
+        k_r2 = (r1 - r2) * (r3 - r4) / ((r1 - r3) * (r2 - r4))
+        k_th2 = z_minus / z_plus
+        h_r = (r1 - r2) / (r1 - r3)
+        h_plus = (r1 - r2) * (r3 - r_plus) / ((r1 - r3) * (r2 - r_plus))
+        h_minus = (r1 - r2) * (r3 - r_minus) / ((r1 - r3) * (r2 - r_minus))
+        K_r = self.ellipk(k_r2)
+        K_th = self.ellipk(k_th2)
+        E_r = self.ellipe(k_r2)
+        E_th = self.ellipe(k_th2)
+        Pi_r = self.ellippi(h_r, k_r2)
+        Pi_plus = self.ellippi(h_plus, k_r2)
+        Pi_minus = self.ellippi(h_minus, k_r2)
+        Pi_z = self.ellippi(z_minus, k_th2)
+        e0zp = (a**2 * (1 - E**2) * (1 - z_minus) + Lz**2) / (Lz**2 * (1 - z_minus))
+        eps0 = a**2 * (1 - E**2) / Lz**2
+        radial_pref = jnp.sqrt((1 - E**2) * (r1 - r3) * (r2 - r4))
+        Upsilon_r = jnp.pi * radial_pref / (2 * K_r)
+        Upsilon_theta = jnp.pi * Lz * jnp.sqrt(e0zp) / (2 * K_th)
+        Upsilon_phi = 2 * Upsilon_theta / (jnp.pi * jnp.sqrt(e0zp)) * Pi_z + 2 * a * Upsilon_r / (jnp.pi * (r_plus - r_minus) * radial_pref) * (
+            (2 * E * r_plus - a * Lz) / (r3 - r_plus) * (K_r - (r2 - r3) / (r2 - r_plus) * Pi_plus)
+            - (2 * E * r_minus - a * Lz) / (r3 - r_minus) * (K_r - (r2 - r3) / (r2 - r_minus) * Pi_minus)
+        )
+        Gamma = (
+            4 * E
+            + 2 * a**2 * z_plus / jnp.sqrt(eps0 * z_plus) * E * Upsilon_theta * (K_th - E_th) / (jnp.pi * Lz)
+            + 2 * Upsilon_r / (jnp.pi * radial_pref) * (
+                E / 2 * ((r3 * (r1 + r2 + r3) - r1 * r2) * K_r + (r2 - r3) * (r1 + r2 + r3 + r4) * Pi_r + (r1 - r3) * (r2 - r4) * E_r)
+                + 2 * E * (r3 * K_r + (r2 - r3) * Pi_r)
+                + 2 / (r_plus - r_minus) * (
+                    ((4 * E - a * Lz) * r_plus - 2 * a**2 * E) / (r3 - r_plus) * (K_r - (r2 - r3) / (r2 - r_plus) * Pi_plus)
+                    - ((4 * E - a * Lz) * r_minus - 2 * a**2 * E) / (r3 - r_minus) * (K_r - (r2 - r3) / (r2 - r_minus) * Pi_minus)
+                )
+            )
+        )
+        return Upsilon_r, jnp.abs(Upsilon_theta), Upsilon_phi, Gamma
+    @typed
+    def fundamental_frequencies(self, p:Scalar, e:Scalar, x:Scalar, M:Scalar, a:Scalar) -> tuple[Scalar, Scalar, Scalar]:
+        """ Boyer-Lindquist frequencies Omega_i = Upsilon_i / Gamma.
+
+        Args:
+            p (Scalar): Dimensionless semi-latus rectum (semi-latus rectum / M).
+            e (Scalar): Eccentricity.
+            x (Scalar): Cosine of the inclination.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+
+        Returns:
+            tuple: (Omega_r, Omega_theta, Omega_phi).
+        """
+        Upsilon_r, Upsilon_theta, Upsilon_phi, Gamma = self.mino_frequencies(p, e, x, M, a)
+        return Upsilon_r / Gamma, Upsilon_theta / Gamma, Upsilon_phi / Gamma
+    @typed
+    def r(self, lam:Scalar, p:Scalar, e:Scalar, x:Scalar, M:Scalar, a:Scalar) -> Scalar:
+        """ Radial coordinate r(lambda) (Fujita & Hikida eq. 27).
+
+        Args:
+            lam (Scalar): Mino time.
+            p (Scalar): Dimensionless semi-latus rectum (semi-latus rectum / M).
+            e (Scalar): Eccentricity.
+            x (Scalar): Cosine of the inclination.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+
+        Returns:
+            Scalar: r(lambda), with r(0) = periapsis.
+        """
+        E, Lz, Q = self.constants_of_motion(p, e, x, M, a)
+        r1, r2, r3, r4 = self.find_radial_roots(p, e, M, a, E, Q)
+        Upsilon_r, _, _, _ = self.mino_frequencies(p, e, x, M, a)
+        k_r2 = (r1 - r2) * (r3 - r4) / ((r1 - r3) * (r2 - r4))
+        q_r = Upsilon_r * lam
+        _, _, _, psi = self.ellipj(self.ellipk(k_r2) * q_r / jnp.pi, k_r2)
+        return self.r_psi(psi, r1, r2, r3, r4)
+    @typed
+    def theta(self, lam:Scalar, p:Scalar, e:Scalar, x:Scalar, M:Scalar, a:Scalar) -> Scalar:
+        """ Polar angle theta(lambda) (Fujita & Hikida eq. 38).
+
+        Args:
+            lam (Scalar): Mino time.
+            p (Scalar): Dimensionless semi-latus rectum (semi-latus rectum / M).
+            e (Scalar): Eccentricity.
+            x (Scalar): Cosine of the inclination.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+
+        Returns:
+            Scalar: theta(lambda), with theta(0) = theta_min.
+        """
+        E, Lz, Q = self.constants_of_motion(p, e, x, M, a)
+        z_minus, z_plus = self.find_polar_roots(a, E, Lz, Q, x)
+        _, Upsilon_theta, _, _ = self.mino_frequencies(p, e, x, M, a)
+        k_th2 = z_minus / z_plus
+        q_theta = Upsilon_theta * lam
+        sn, _, _, _ = self.ellipj(2 / jnp.pi * self.ellipk(k_th2) * (q_theta + jnp.pi / 2), k_th2)
+        return jnp.arccos(jnp.sqrt(z_minus) * sn)
+    @typed
+    def t(self, lam:Scalar, p:Scalar, e:Scalar, x:Scalar, M:Scalar, a:Scalar) -> Scalar:
+        """ Coordinate time t(lambda) (Fujita & Hikida eqs. 6, 28, 39).
+
+        Args:
+            lam (Scalar): Mino time.
+            p (Scalar): Dimensionless semi-latus rectum (semi-latus rectum / M).
+            e (Scalar): Eccentricity.
+            x (Scalar): Cosine of the inclination.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+
+        Returns:
+            Scalar: t(lambda), with t(0) = 0.
+        """
+        E, Lz, Q = self.constants_of_motion(p, e, x, M, a)
+        r1, r2, r3, r4 = self.find_radial_roots(p, e, M, a, E, Q)
+        z_minus, z_plus = self.find_polar_roots(a, E, Lz, Q, x)
+        Upsilon_r, Upsilon_theta, _, Gamma = self.mino_frequencies(p, e, x, M, a)
+        r_plus = M + jnp.sqrt(M**2 - a**2)
+        r_minus = M - jnp.sqrt(M**2 - a**2)
+        k_r2 = (r1 - r2) * (r3 - r4) / ((r1 - r3) * (r2 - r4))
+        k_th2 = z_minus / z_plus
+        h_r = (r1 - r2) / (r1 - r3)
+        h_plus = (r1 - r2) * (r3 - r_plus) / ((r1 - r3) * (r2 - r_plus))
+        h_minus = (r1 - r2) * (r3 - r_minus) / ((r1 - r3) * (r2 - r_minus))
+        q_r = Upsilon_r * lam
+        q_theta = Upsilon_theta * lam
+        sn, cn, dn, psi_r = self.ellipj(self.ellipk(k_r2) * q_r / jnp.pi, k_r2)
+        _, _, _, psi_th = self.ellipj(2 / jnp.pi * self.ellipk(k_th2) * (q_theta + jnp.pi / 2), k_th2)
+        dPi_r = self.ellippiinc(psi_r, h_r, k_r2) - q_r / jnp.pi * self.ellippi(h_r, k_r2)
+        dPi_plus = self.ellippiinc(psi_r, h_plus, k_r2) - q_r / jnp.pi * self.ellippi(h_plus, k_r2)
+        dPi_minus = self.ellippiinc(psi_r, h_minus, k_r2) - q_r / jnp.pi * self.ellippi(h_minus, k_r2)
+        dE_r = self.ellipeinc(psi_r, k_r2) + h_r * sn * cn * dn / (h_r * sn**2 - 1) - q_r / jnp.pi * self.ellipe(k_r2)
+        radial_pref = 2 / jnp.sqrt((1 - E**2) * (r1 - r3) * (r2 - r4))
+        t_r = radial_pref * (
+            E / 2 * ((r2 - r3) * (r1 + r2 + r3 + r4) * dPi_r + (r1 - r3) * (r2 - r4) * dE_r)
+            + 2 * E * (r2 - r3) * dPi_r
+            - 2 / (r_plus - r_minus) * (
+                ((4 * E - a * Lz) * r_plus - 2 * a**2 * E) * (r2 - r3) / ((r3 - r_plus) * (r2 - r_plus)) * dPi_plus
+                - ((4 * E - a * Lz) * r_minus - 2 * a**2 * E) * (r2 - r3) / ((r3 - r_minus) * (r2 - r_minus)) * dPi_minus
+            )
+        )
+        eps0 = a**2 * (1 - E**2) / Lz**2
+        t_theta = jnp.sign(Lz) * a**2 * z_plus / jnp.sqrt(eps0 * z_plus) * E / Lz * (
+            2 / jnp.pi * self.ellipe(k_th2) * (q_theta + jnp.pi / 2) - self.ellipeinc(psi_th, k_th2)
+        )
+        return Gamma * lam + t_r + t_theta
+    @typed
+    def phi(self, lam:Scalar, p:Scalar, e:Scalar, x:Scalar, M:Scalar, a:Scalar) -> Scalar:
+        """ Azimuthal angle phi(lambda) (Fujita & Hikida eqs. 6, 28, 39).
+
+        Args:
+            lam (Scalar): Mino time.
+            p (Scalar): Dimensionless semi-latus rectum (semi-latus rectum / M).
+            e (Scalar): Eccentricity.
+            x (Scalar): Cosine of the inclination.
+            M (Scalar): Mass of the black hole.
+            a (Scalar): Spin parameter of the black hole.
+
+        Returns:
+            Scalar: phi(lambda), with phi(0) = 0.
+        """
+        E, Lz, Q = self.constants_of_motion(p, e, x, M, a)
+        r1, r2, r3, r4 = self.find_radial_roots(p, e, M, a, E, Q)
+        z_minus, z_plus = self.find_polar_roots(a, E, Lz, Q, x)
+        Upsilon_r, Upsilon_theta, Upsilon_phi, _ = self.mino_frequencies(p, e, x, M, a)
+        r_plus = M + jnp.sqrt(M**2 - a**2)
+        r_minus = M - jnp.sqrt(M**2 - a**2)
+        k_r2 = (r1 - r2) * (r3 - r4) / ((r1 - r3) * (r2 - r4))
+        k_th2 = z_minus / z_plus
+        h_plus = (r1 - r2) * (r3 - r_plus) / ((r1 - r3) * (r2 - r_plus))
+        h_minus = (r1 - r2) * (r3 - r_minus) / ((r1 - r3) * (r2 - r_minus))
+        q_r = Upsilon_r * lam
+        q_theta = Upsilon_theta * lam
+        _, _, _, psi_r = self.ellipj(self.ellipk(k_r2) * q_r / jnp.pi, k_r2)
+        _, _, _, psi_th = self.ellipj(2 / jnp.pi * self.ellipk(k_th2) * (q_theta + jnp.pi / 2), k_th2)
+        dPi_plus = self.ellippiinc(psi_r, h_plus, k_r2) - q_r / jnp.pi * self.ellippi(h_plus, k_r2)
+        dPi_minus = self.ellippiinc(psi_r, h_minus, k_r2) - q_r / jnp.pi * self.ellippi(h_minus, k_r2)
+        phi_r = -2 * a / ((r_plus - r_minus) * jnp.sqrt((1 - E**2) * (r1 - r3) * (r2 - r4))) * (
+            (2 * E * r_plus - a * Lz) * (r2 - r3) / ((r3 - r_plus) * (r2 - r_plus)) * dPi_plus
+            - (2 * E * r_minus - a * Lz) * (r2 - r3) / ((r3 - r_minus) * (r2 - r_minus)) * dPi_minus
+        )
+        e0zp = (a**2 * (1 - E**2) * (1 - z_minus) + Lz**2) / (Lz**2 * (1 - z_minus))
+        phi_theta = jnp.sign(Lz) / jnp.sqrt(e0zp) * (
+            self.ellippiinc(psi_th, z_minus, k_th2) - 2 / jnp.pi * self.ellippi(z_minus, k_th2) * (q_theta + jnp.pi / 2)
+        )
+        return Upsilon_phi * lam + phi_r + phi_theta
 
 if __name__ == "__main__":
     bl = BoyerLindquist()
