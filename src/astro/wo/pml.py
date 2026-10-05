@@ -20,8 +20,6 @@ def t_L(Mlz: Scalar) -> Scalar:
         Time scale of the lens t_L = 4 * Mlz
     """
     return 4 * Mlz
-
-
 @typed
 def theta_L(Mlz: Scalar, Dl: Scalar, Ds: Scalar, Dls: Scalar) -> Scalar:
     """ Angular scale of the lens.
@@ -36,8 +34,6 @@ def theta_L(Mlz: Scalar, Dl: Scalar, Ds: Scalar, Dls: Scalar) -> Scalar:
         Angular scale of the lens theta_L = sqrt(4 * Mlz * Dls / (Dl * Ds))
     """
     return jnp.sqrt(4 * Mlz * Dls / (Dl * Ds))
-
-
 @typed
 def omega(Mlz: Scalar, f: Vec) -> Vec:
     """ Dimensionless frequency.
@@ -50,8 +46,6 @@ def omega(Mlz: Scalar, f: Vec) -> Vec:
         Dimensionless frequency omega = 8 * pi * Mlz * f
     """
     return 8 * jnp.pi * Mlz * f
-
-
 @typed
 def phi_m(y: Scalar) -> Scalar:
     """ Phase at the minimum of the Fermat potential.
@@ -64,14 +58,10 @@ def phi_m(y: Scalar) -> Scalar:
     """
     x_m = (y + jnp.sqrt(y**2 + 4)) / 2
     return (x_m - y) ** 2 / 2 - jnp.log(x_m)
-
-
-def delta_T(y):
-    """Time delay between the + and − images."""
+def Deltat(y):
+    """Time delay between the + and − images in geometric optics limit."""
     s = jnp.sqrt(y**2 + 4)
     return 0.5 * y * s + jnp.log((s + y) / (s - y))
-
-
 def Fgeo(omega, y):
     """Geometric-optics amplification factor.
 
@@ -80,9 +70,7 @@ def Fgeo(omega, y):
     s = jnp.sqrt(y**2 + 4)
     mu_p = 0.5 + (y**2 + 2) / (2 * y * s)
     mu_m = 0.5 - (y**2 + 2) / (2 * y * s)
-    return jnp.sqrt(jnp.abs(mu_p)) - 1j * jnp.sqrt(jnp.abs(mu_m)) * jnp.exp(1j * omega * delta_T(y))
-
-
+    return jnp.sqrt(jnp.abs(mu_p)) - 1j * jnp.sqrt(jnp.abs(mu_m)) * jnp.exp(1j * omega *Deltat(y))
 def _hyp1f1(a, b, z, tol=1e-13, maxn=5000):
     """₁F₁(a; b; z) by power series (scalar)."""
 
@@ -98,8 +86,6 @@ def _hyp1f1(a, b, z, tol=1e-13, maxn=5000):
     one = jnp.asarray(1.0 + 0.0j, dtype=jnp.complex128)
     _, _, s = jax.lax.while_loop(cond, body, (1, one, one))
     return s
-
-
 def _F_scalar(om, y):
     """Wave-optics F at one frequency (see F)."""
     # JAX has no complex hyp1f1; use the series. |z| = ω y²/2.
