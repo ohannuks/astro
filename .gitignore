@@ -1,6 +1,3 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
-
-# Point-mass F LUT: built on first use / test run
-src/astro/wo/data/df_lut.npz

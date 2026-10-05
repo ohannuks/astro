@@ -88,9 +88,6 @@ def F(omega: ScalarOrVec, y: Scalar) -> CScalarOrVec:
 
     F(ω, y) = exp(π ω/4 + i ω/2 [log(ω/2) − 2 φ_m(y)])
               × Γ(1 − i ω/2) × ₁F₁(i ω/2; 1; i ω y²/2)
-
-    For a JIT-friendly path with low/high-frequency limits and a lookup
-    table, use ``astro.wo.df_lut.F``.
     """
     omega = jnp.asarray(omega, dtype=jnp.float64)
     y = jnp.asarray(y, dtype=jnp.float64)
@@ -99,9 +96,6 @@ def F(omega: ScalarOrVec, y: Scalar) -> CScalarOrVec:
     return jax.vmap(lambda om: _F_scalar(om, y))(omega)
 
 if __name__ == "__main__":
-    # Demo over a wide band: use the LUT/limit wrapper (keeps this file clean).
-    from astro.wo.df_lut import F as F_eval
-
     Msun = 4.925490947e-6  # solar mass in seconds
     Ml = 30 * Msun
     zl = 0.5
@@ -110,7 +104,7 @@ if __name__ == "__main__":
 
     omega_val = omega(Mlz, f)
     y = jnp.array(0.1)
-    F_val = F_eval(omega_val, y)
+    F_val = F(omega_val, y)
 
     print(f"Dimensionless frequency (omega): {omega_val}")
     print(f"Amplification factor (F): {F_val}")
