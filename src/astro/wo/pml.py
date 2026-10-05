@@ -9,6 +9,7 @@ from jax.scipy.special import gamma
 from astro.common import CScalar, CScalarOrVec, Scalar, ScalarOrVec, Vec, typed
 from astro.wo.hyp1f1 import hyp1f1
 
+jax.config.update("jax_enable_x64", True)  # Use double precision for better accuracy
 
 @typed
 def t_L(Mlz: Scalar) -> Scalar:
@@ -105,7 +106,7 @@ if __name__ == "__main__":
     Ml = 30 * Msun
     zl = 0.5
     Mlz = jnp.array(Ml * (1 + zl))
-    f = jnp.geomspace(1, 1000, 100)
+    f = jnp.geomspace(1, 1000000, 1000)
 
     omega_val = omega(Mlz, f)
     y = jnp.array(0.1)
