@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 from jax.scipy.special import gamma
 
-from astro.common import Scalar, Vec, typed
+from astro.common import CScalar, CScalarOrVec, Scalar, ScalarOrVec, Vec, typed
 from astro.wo.hyp1f1 import hyp1f1
 
 
@@ -65,7 +65,7 @@ def Deltat(y: Scalar) -> Scalar:
     s = jnp.sqrt(y**2 + 4)
     return 0.5 * y * s + jnp.log((s + y) / (s - y))
 @typed
-def Fgeo(omega: Vec, y: Scalar) -> Vec:
+def Fgeo(omega: ScalarOrVec, y: Scalar) -> CScalarOrVec:
     """Geometric-optics amplification factor.
 
     F_geo = sqrt|μ₊| - i sqrt|μ₋| exp(i ω ΔT)
@@ -75,14 +75,14 @@ def Fgeo(omega: Vec, y: Scalar) -> Vec:
     mu_m = 0.5 - (y**2 + 2) / (2 * y * s)
     return jnp.sqrt(jnp.abs(mu_p)) - 1j * jnp.sqrt(jnp.abs(mu_m)) * jnp.exp(1j * omega * Deltat(y))
 @typed
-def _F_scalar(omega: Scalar, y: Scalar) -> Scalar:
+def _F_scalar(omega: Scalar, y: Scalar) -> CScalar:
     """Wave-optics F at one frequency (see F)."""
     a = 1j * omega / 2
     z = 1j * omega * y * y / 2
     pref = jnp.exp(jnp.pi * omega / 4 + 1j * omega / 2 * (jnp.log(omega / 2) - 2 * phi_m(y)))
     return pref * gamma(1.0 - 1j * omega / 2.0) * hyp1f1(a, 1.0 + 0.0j, z)
 @typed
-def F(omega: Vec, y: Scalar) -> Vec:
+def F(omega: ScalarOrVec, y: Scalar) -> CScalarOrVec:
     """Wave-optics amplification factor for a point mass lens.
 
     F(ω, y) = exp(π ω/4 + i ω/2 [log(ω/2) − 2 φ_m(y)])
