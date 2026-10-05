@@ -168,46 +168,30 @@ class BoyerLindquistGeodesic(BoyerLindquist):
     @typed
     def ellipk(self, m:Scalar) -> Scalar:
         """ Complete elliptic integral of the first kind K(m). """
-        if isinstance(m, jax.core.Tracer):
-            F, _, _ = elliptic.elliptic12(jnp.pi / 2, m)
-            return F
-        F, _, _ = elliptic.elliptic12(np.pi / 2, np.asarray(m, dtype=np.float64))
-        return jnp.asarray(F)
+        F, _, _ = elliptic.elliptic12(jnp.pi / 2, m)
+        return F
     @typed
     def ellipe(self, m:Scalar) -> Scalar:
         """ Complete elliptic integral of the second kind E(m). """
-        if isinstance(m, jax.core.Tracer):
-            _, Einc, _ = elliptic.elliptic12(jnp.pi / 2, m)
-            return Einc
-        _, Einc, _ = elliptic.elliptic12(np.pi / 2, np.asarray(m, dtype=np.float64))
-        return jnp.asarray(Einc)
+        _, Einc, _ = elliptic.elliptic12(jnp.pi / 2, m)
+        return Einc
     @typed
     def ellippi(self, n:Scalar, m:Scalar) -> Scalar:
         """ Complete elliptic integral of the third kind Pi(n, m). """
-        if isinstance(m, jax.core.Tracer) or isinstance(n, jax.core.Tracer):
-            return elliptic.elliptic3(jnp.pi / 2, m, n)
-        return jnp.asarray(elliptic.elliptic3(np.pi / 2, np.asarray(m, dtype=np.float64), np.asarray(n, dtype=np.float64)))
+        return elliptic.elliptic3(jnp.pi / 2, m, n)
     @typed
     def ellipeinc(self, phi:Scalar, m:Scalar) -> Scalar:
         """ Incomplete elliptic integral of the second kind E(phi, m). """
-        if isinstance(phi, jax.core.Tracer) or isinstance(m, jax.core.Tracer):
-            _, Einc, _ = elliptic.elliptic12(phi, m)
-            return Einc
-        _, Einc, _ = elliptic.elliptic12(np.asarray(phi, dtype=np.float64), np.asarray(m, dtype=np.float64))
-        return jnp.asarray(Einc)
+        _, Einc, _ = elliptic.elliptic12(phi, m)
+        return Einc
     @typed
     def ellippiinc(self, phi:Scalar, n:Scalar, m:Scalar) -> Scalar:
         """ Incomplete elliptic integral of the third kind Pi(phi, n, m). """
-        if isinstance(phi, jax.core.Tracer) or isinstance(n, jax.core.Tracer) or isinstance(m, jax.core.Tracer):
-            return elliptic.elliptic3(phi, m, n)
-        return jnp.asarray(elliptic.elliptic3(np.asarray(phi, dtype=np.float64), np.asarray(m, dtype=np.float64), np.asarray(n, dtype=np.float64)))
+        return elliptic.elliptic3(phi, m, n)
     @typed
     def ellipj(self, u:Scalar, m:Scalar) -> tuple[Scalar, Scalar, Scalar, Scalar]:
         """ Jacobi elliptic functions (sn, cn, dn, am). """
-        if isinstance(u, jax.core.Tracer) or isinstance(m, jax.core.Tracer):
-            return elliptic.ellipj(u, m)
-        sn, cn, dn, am = elliptic.ellipj(np.asarray(u, dtype=np.float64), np.asarray(m, dtype=np.float64))
-        return jnp.asarray(sn), jnp.asarray(cn), jnp.asarray(dn), jnp.asarray(am)
+        return elliptic.ellipj(u, m)
     @typed
     def r_psi(self, psi:Scalar, r1:Scalar, r2:Scalar, r3:Scalar, r4:Scalar) -> Scalar:
         """ Returns the radial coordinate r as a function of the Jacobi amplitude psi (eq. 62).
