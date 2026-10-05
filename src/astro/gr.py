@@ -165,47 +165,62 @@ class BoyerLindquist:
 class BoyerLindquistGeodesic(BoyerLindquist):
     """ Struct for geodesics in Boyer-Lindquist coordinates using semi-analytical methods following https://arxiv.org/abs/0906.1420 . """
     @typed
-    def r_psi(psi, r1:Scalar, r2:Scalar, r3:Scalar, r4:Scalar) -> Scalar:
-        """ Returns the radial coordinate r as a function of the parameter psi.
+    def r_psi(self, psi:Scalar, r1:Scalar, r2:Scalar, r3:Scalar, r4:Scalar) -> Scalar:
+        """ Returns the radial coordinate r as a function of the Jacobi amplitude psi (eq. 62).
 
         Args:
-            psi (Scalar): Parameter.
-            r1 (Scalar): First root of the radial potential.
-            r2 (Scalar): Second root of the radial potential.
+            psi (Scalar): Jacobi amplitude (am), with sn(u|m) = sin(psi).
+            r1 (Scalar): First root of the radial potential (apoapsis).
+            r2 (Scalar): Second root of the radial potential (periapsis).
             r3 (Scalar): Third root of the radial potential.
             r4 (Scalar): Fourth root of the radial potential.
 
         Returns:
-            Scalar: Radial coordinate r(psi) as a function of the parameter psi.
+            Scalar: Radial coordinate r(psi).
         """
         sin_psi = jnp.sin(psi)
-        r_psi = r1*r4*(r2 - r3) + r2*r3*(r1 - r4) *sin_psi**2 / ((r2 - r3) + (r1 - r4) * sin_psi**2)
-        return r_psi
+        r = (r3 * (r1 - r2) * sin_psi**2 - r2 * (r1 - r3)) / ((r1 - r2) * sin_psi**2 - (r1 - r3))
+        return r
     @typed
-    def R(self, lambda: Scalar, M:Scalar, a:Scalar, E:Scalar, Lz:Scalar, Q:Scalar) -> Scalar:
-        """ Returns the radial component of the equations of motion in Boyer-Lindquist coordinates.
+    def find_radial_roots(self, p:Scalar, e:Scalar, M:Scalar, a:Scalar, E:Scalar, Q:Scalar) -> tuple[Scalar, Scalar, Scalar, Scalar]:
+        """ Returns the four roots (r1, r2, r3, r4) of the radial potential R(r) (eqs. 21-22).
 
         Args:
-            lambda (Scalar): Affine parameter.
-            r (Scalar): Radial coordinate.
+            p (Scalar): Dimensionless semi-latus rectum (semi-latus rectum / M).
+            e (Scalar): Eccentricity.
             M (Scalar): Mass of the black hole.
             a (Scalar): Spin parameter of the black hole.
-            E (Scalar): Specific Energy of the particle (E = E_standard / mu)
-            Lz (Scalar): Specific Angular momentum of the particle (Lz = Lz_standard / mu)
-            Q (Scalar): Specific Carter constant of the particle (Q = Q_standard / mu^2)
+            E (Scalar): Specific energy.
+            Q (Scalar): Specific Carter constant.
 
         Returns:
-            Scalar: Radial component of the equations of motion in Boyer-Lindquist coordinates.
+            tuple: (r1, r2, r3, r4) with r1 = r_max, r2 = r_min.
         """
-        r0, r1, r2, r3 = self.find_radial_roots(M, a, E, Lz, Q)
-        m = (r1 - r2) * (r3 - r4) / ((r1 - r3) * (r2 - r4))
-        psi = jnp.arcsin(jnp.sqrt((r1 - r3) * (r - r2) / ((r1 - r2) * (r - r3))))
-        psi_0 = jnp.arcsin(jnp.sqrt((r1 - r3) * (r0 - r2) / ((r1 - r2) * (r0 - r3))))
-        F_psi_0 = elliptic.elliptic12(psi_0, m)[0]
-        F_psi = elliptic.elliptic12(psi, m)[0]
-        omega_lambda = F_psi_0-F_psi
-        phase_offset = 0
-        sin_psi = elliptic.ellipj(omega_lambda, m)[0]
+        r1 = p * M / (1 - e)
+        r2 = p * M / (1 + e)
+        A_plus_B = 2 * M / (1 - E**2) - (r1 + r2)
+        AB = a**2 * Q / ((1 - E**2) * r1 * r2)
+        r3 = 0.5 * (A_plus_B + jnp.sqrt(A_plus_B**2 - 4 * AB))
+        r4 = AB / r3
+        return r1, r2, r3, r4
+    @typed
+    def find_polar_roots(self, a:Scalar, E:Scalar, Lz:Scalar, Q:Scalar, x:Scalar) -> tuple[Scalar, Scalar]:
+        """ Returns the polar roots (z_minus, z_plus) (eq. 20).
+
+        Args:
+            a (Scalar): Spin parameter of the black hole.
+            E (Scalar): Specific energy.
+            Lz (Scalar): Specific angular momentum.
+            Q (Scalar): Specific Carter constant.
+            x (Scalar): Cosine of the inclination angle.
+
+        Returns:
+            tuple: (z_minus, z_plus) with z_minus = cos^2(theta_min).
+        """
+        z_minus = 1 - x**2
+        eps0 = a**2 * (1 - E**2) / Lz**2
+        z_plus = Q / (Lz**2 * eps0 * z_minus)
+        return z_minus, z_plus
 
 if __name__ == "__main__":
     bl = BoyerLindquist()
@@ -222,5 +237,3 @@ if __name__ == "__main__":
     print("thetadot2:", bl.thetadot2(theta, M, a, E, Lz, Q))
     print("phidot:", bl.phidot(r, theta, M, a, E, Lz))
     print("tdot:", bl.tdot(r, theta, M, a, E, Lz))
-    
-
