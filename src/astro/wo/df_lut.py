@@ -1,9 +1,8 @@
-"""Lookup table for point-mass wave-optics amplification F(ω, y).
+"""Fast PML amplification: lookup table + asymptotic regime switching.
 
-SciPy hyp1f1 allows complex x only, not complex a; PML needs a = iω/2.
-Table is built offline with a complex series (+ SciPy gamma). We store F
-(not dF=F−Fgeo): at small y, Fgeo∼y^{-1/2} so dF cancels badly under bilinear
-interp. Runtime still exposes dF := F_lut − Fgeo when needed.
+Keeps the mess out of ``pml.py``. Table is built on first use (SciPy/NumPy
+series; JAX has no complex ₁F₁). Stores F directly (not dF): at small y,
+Fgeo∼y^{-1/2} so interpolating dF cancels badly.
 """
 from __future__ import annotations
 
@@ -12,14 +11,21 @@ from pathlib import Path
 import jax.numpy as jnp
 import numpy as np
 
+from astro.wo import pml
+
 DATA_PATH = Path(__file__).resolve().parent / "data" / "df_lut.npz"
 
-# LUT covers the intermediate wave-optics strip. Outside: asymptotic limits
-# in pml.F (ω→0 → 1, large ωΔT → Fgeo) or the JAX series fallback.
+# LUT box (intermediate wave-optics strip).
 OMEGA_MAX = 5.0
 Y_MAX = 3.0
 OMEGA_MIN = 1e-4
 Y_MIN = 1e-6
+
+# Regime thresholds for F() below.
+WAVE_OMEGA_MAX = 1e-4  # ω → 0 ⇒ F → 1
+GEO_PHASE_THRESH = 8.0  # ω ΔT ≳ this ⇒ Fgeo
+SERIES_Z_MAX = 25.0  # |z|=ω y²/2; beyond, series overflows → Fgeo
+SERIES_PREF_Z = 2.0  # prefer pml.F over LUT when |z| small
 
 
 def _hyp1f1_series(a: complex, b: complex, z: complex, tol: float = 1e-13, maxn: int = 5000) -> complex:
@@ -186,12 +192,7 @@ class DFLookup:
                 self.y_min,
                 self.y_max,
             )
-        s = jnp.sqrt(y**2 + 4)
-        mu_p = 0.5 + (y**2 + 2) / (2 * y * s)
-        mu_m = 0.5 - (y**2 + 2) / (2 * y * s)
-        dT = 0.5 * y * s + jnp.log((s + y) / (s - y))
-        Fgeo = jnp.sqrt(jnp.abs(mu_p)) - 1j * jnp.sqrt(jnp.abs(mu_m)) * jnp.exp(1j * omega * dT)
-        return self.F(omega, y) - Fgeo
+        return self.F(omega, y) - pml.Fgeo(omega, y)
 
 
 _default_lut: DFLookup | None = None
@@ -214,6 +215,58 @@ def F_lut(omega, y):
 def dF(omega, y):
     """Interpolated residual dF(ω, y) = F_lut − Fgeo."""
     return get_df_lut()(omega, y)
+
+
+def in_wave_limit(omega):
+    """Deep wave-optics: ω → 0 ⇒ F → 1."""
+    return omega <= WAVE_OMEGA_MAX
+
+
+def in_geo_limit(omega, y):
+    """Geometric optics: large image phase ω ΔT."""
+    return omega * pml.delta_T(y) >= GEO_PHASE_THRESH
+
+
+def _in_lut(omega, y):
+    lut = get_df_lut()
+    return (
+        (omega >= lut.omega_min)
+        & (omega <= lut.omega_max)
+        & (y >= lut.y_min)
+        & (y <= lut.y_max)
+    )
+
+
+def _F_series_safe(omega, y):
+    """``pml.F`` with a guard when |z| is too large for the ₁F₁ series."""
+    z_abs = 0.5 * omega * y * y
+    om_s = jnp.where(z_abs < SERIES_Z_MAX, jnp.maximum(omega, 1e-300), 1.0)
+    return jnp.where(z_abs < SERIES_Z_MAX, pml.F(om_s, y), pml.Fgeo(omega, y))
+
+
+def F(omega, y):
+    """Fast amplification factor: wave/geo limits + LUT + ``pml.F`` fallback.
+
+    * ω ≤ WAVE_OMEGA_MAX → 1
+    * ω ΔT ≥ GEO_PHASE_THRESH → ``pml.Fgeo``
+    * else inside LUT and |z| ≥ SERIES_PREF_Z → table
+    * else → ``pml.F`` (series), or ``pml.Fgeo`` if |z| too large
+    """
+    omega = jnp.asarray(omega, dtype=jnp.float64)
+    y = jnp.asarray(y, dtype=jnp.float64)
+
+    wave = in_wave_limit(omega)
+    geo = in_geo_limit(omega, y)
+    z_abs = 0.5 * omega * y * y
+    lut = _in_lut(omega, y) & (~wave) & (~geo) & (z_abs >= SERIES_PREF_Z)
+
+    F_w = jnp.ones_like(omega, dtype=jnp.float64) + 0.0j
+    F_g = pml.Fgeo(omega, y)
+    F_l = F_lut(omega, y)
+    F_s = _F_series_safe(omega, y)
+
+    mid = jnp.where(lut, F_l, F_s)
+    return jnp.where(wave, F_w, jnp.where(geo, F_g, mid))
 
 
 if __name__ == "__main__":
