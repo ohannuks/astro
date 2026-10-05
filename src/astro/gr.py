@@ -530,7 +530,7 @@ if __name__ == "__main__":
     x = jnp.array(np.cos(np.deg2rad(20.0)))
     M = jnp.array(1.0)
     a = jnp.array(0.9)
-    lams = jnp.linspace(0.0, 20.0, 80)
+    lams = jnp.linspace(0.0, 20.0, 800)
     r = jax.vmap(lambda lam: geo.r(lam, p, e, x, M, a))(lams)
     theta = jax.vmap(lambda lam: geo.theta(lam, p, e, x, M, a))(lams)
     phi = jax.vmap(lambda lam: geo.phi(lam, p, e, x, M, a))(lams)
