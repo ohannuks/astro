@@ -78,12 +78,16 @@ def Fgeo(omega: ScalarOrVec, y: Scalar) -> CScalarOrVec:
 @typed
 def _F_scalar(omega: Scalar, y: Scalar) -> CScalar:
     """Wave-optics F at one frequency (see F)."""
-    a = 1j * omega / 2
-    z = 1j * omega * y * y / 2
-    pref = jnp.exp(jnp.pi * omega / 4 + 1j * omega / 2 * (jnp.log(omega / 2) - 2 * phi_m(y)))
-    return pref * gamma(1.0 - 1j * omega / 2.0) * hyp1f1(a, 1.0 + 0.0j, z)
+    def F_geo(_):
+        return Fgeo(omega,y)
+    def F_wo(_):
+        a = 1j * omega / 2
+        z = 1j * omega * y * y / 2
+        pref = jnp.exp(jnp.pi * omega / 4 + 1j * omega / 2 * (jnp.log(omega / 2) - 2 * phi_m(y)))
+        return pref * gamma(1.0 - 1j * omega / 2.0) * hyp1f1(a, 1.0 + 0.0j, z)
+    return jax.lax.cond(omega > 100, F_geo, F_wo, operand=None) # Jax dislikes `if` statements with arrays, so we use `lax.cond` instead.
 @typed
-def F(omega: ScalarOrVec, y: Scalar) -> CScalarOrVec:
+def F(omega: Vec, y: Scalar) -> CScalarOrVec:
     """Wave-optics amplification factor for a point mass lens.
 
     F(ω, y) = exp(π ω/4 + i ω/2 [log(ω/2) − 2 φ_m(y)])
