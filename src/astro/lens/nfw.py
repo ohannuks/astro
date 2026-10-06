@@ -31,8 +31,6 @@ def density(r: Scalar, rs: Scalar, rho0: Scalar) -> Scalar:
     """NFW density profile."""
     return rho0 / ((r / rs) * (1 + r / rs) ** 2)
 
-
-
 if __name__ == "__main__":
     Msun = 4.925490947e-6  # solar mass in seconds
     Ml = 30 * Msun
