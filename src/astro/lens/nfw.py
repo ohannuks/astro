@@ -1,5 +1,6 @@
 """Point-mass lens (PML): scales, Fermat phase, and amplification factors."""
 from astro.common import CScalar, CVec, Scalar, Vec, typed
+import cosmology
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import gamma
@@ -10,12 +11,8 @@ from astro.lens import general
 jax.config.update("jax_enable_x64", True)  # Use double precision for better accuracy
 
 def rho_crit(z: Scalar) -> Scalar:
-    """Critical density of the universe at redshift z."""
-    H0 = 70.0  # Hubble constant in km/s/Mpc
-    H0 = H0 * 1000 / (3.085677581e22)  # Convert to s^-1
-    G = 6.67430e-11  # Gravitational constant in m^3 kg^-1 s^-2
-    rho_crit_0 = 3 * H0**2 / (8 * jnp.pi * G)  # Critical density at z=0 in kg/m^3
-    return rho_crit_0 * (1 + z) ** 3  # Scale with redshift
+    """Critical density of the universe at redshift z in kg/m^3."""
+    return cosmology.rho_crit(z)
 
 def rs(M200: Scalar, c: Scalar, z: Scalar) -> Scalar:
     """Scale radius of NFW profile.
