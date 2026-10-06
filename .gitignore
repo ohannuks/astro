@@ -1,3 +1,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Rope caches (objectdb, history); keep .ropeproject/config.py tracked
+.ropeproject/*
+!.ropeproject/config.py

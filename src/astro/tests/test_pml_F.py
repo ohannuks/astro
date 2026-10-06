@@ -11,7 +11,13 @@ from specialfunctions import hyp1f1
 
 jax.config.update("jax_enable_x64", True)
 
-from astro.wo import pml
+from astro.lens.wo import pml
+
+
+def _F_at(om: float, y: float):
+    """pml.F takes a 1-D omega; return the scalar value at one frequency."""
+    out = pml.F(jnp.asarray([om]), jnp.asarray(y))
+    return out[0]
 
 
 def _delta_T_np(y: float) -> float:
@@ -55,7 +61,7 @@ def _F_wave_ref(omega: float, y: float) -> complex:
 @pytest.mark.parametrize("y", [1e-6, 1e-4, 0.1, 1.0])
 @pytest.mark.parametrize("om", [1e-3, 0.1, 1.0, 3.0])
 def test_pml_F_matches_ref(om, y):
-    got = complex(pml.F(jnp.asarray(om), jnp.asarray(y)))
+    got = complex(_F_at(om, y))
     assert abs(got - _F_wave_ref(om, y)) < 1e-10
 
 
@@ -79,13 +85,13 @@ def test_pml_Deltat_matches_numpy():
 def test_F_approaches_one_as_omega_to_zero(y):
     for om in [1e-6, 1e-5, 1e-4]:
         # leading correction is O(ω)
-        assert abs(complex(pml.F(jnp.asarray(om), jnp.asarray(y))) - 1.0) < 10.0 * om
+        assert abs(complex(_F_at(om, y)) - 1.0) < 10.0 * om
 
 
 def test_geo_not_used_for_tiny_y_moderate_omega():
     """Caustic: Fgeo ≫ 1 while wave F is O(1)."""
     om, y = 1.0, 1e-6
-    F = complex(pml.F(jnp.asarray(om), jnp.asarray(y)))
+    F = complex(_F_at(om, y))
     Fg = complex(pml.Fgeo(jnp.asarray(om), jnp.asarray(y)))
     assert abs(F) < 10.0
     assert abs(Fg) > 100.0
@@ -96,7 +102,7 @@ def test_F_approaches_Fgeo_at_high_omega():
     """Large ω ΔT: wave F tracks geometric optics (few-percent)."""
     y = 0.5
     om = 100.0
-    got = complex(pml.F(jnp.asarray(om), jnp.asarray(y)))
+    got = complex(_F_at(om, y))
     ref = _F_geo_np(om, y)
     assert abs(got - ref) / max(1.0, abs(ref)) < 0.05
 
@@ -112,7 +118,7 @@ OMEGAS = [1e-4, 5e-4, 1e-3, 1e-2, 0.1, 0.5, 1.0, 2.0, 4.0, 5.0, 10.0, 20.0, 50.0
 @pytest.mark.parametrize("y", YS)
 @pytest.mark.parametrize("om", OMEGAS)
 def test_F_matches_ref_grid(om, y):
-    got = complex(pml.F(jnp.asarray(om), jnp.asarray(y)))
+    got = complex(_F_at(om, y))
     ref = _F_wave_ref(om, y)
     assert abs(got - ref) <= 1e-10 * max(1.0, abs(ref))
 
@@ -120,7 +126,7 @@ def test_F_matches_ref_grid(om, y):
 @pytest.mark.parametrize("y", [1e-6, 1e-5, 1e-4, 1e-3])
 @pytest.mark.parametrize("om", [1e-3, 0.01, 0.1, 1.0, 5.0, 10.0])
 def test_small_y_finite(om, y):
-    got = complex(pml.F(jnp.asarray(om), jnp.asarray(y)))
+    got = complex(_F_at(om, y))
     assert np.isfinite(got.real) and np.isfinite(got.imag)
     assert abs(got) < 20.0
 
@@ -130,7 +136,7 @@ def test_vector_omega_matches_scalar():
     oms = jnp.array([1e-5, 0.01, 1.0, 4.0, 50.0])
     F_vec = pml.F(oms, y)
     for i, om in enumerate(oms):
-        F_s = pml.F(om, y)
+        F_s = _F_at(float(om), float(y))
         assert abs(complex(F_vec[i] - F_s)) < 1e-12
 
 
@@ -141,4 +147,4 @@ def test_jit_F():
     out = Fj(oms, y)
     assert out.shape == oms.shape
     for i, om in enumerate(oms):
-        assert abs(complex(out[i]) - complex(pml.F(om, y))) < 1e-10
+        assert abs(complex(out[i]) - complex(_F_at(float(om), float(y)))) < 1e-10
